@@ -11,6 +11,7 @@ export default function LoginPage() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [activeTab, setActiveTab] = useState<'guide'| 'accounts' | 'roles' | 'analytics'>('guide');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,34 +100,137 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* Demo Credentials Right Sidebar */}
-      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-20 w-64 animate-fade-in hidden lg:block">
-        <div className="glass rounded-2xl p-6 border border-dark-600/50 shadow-2xl overflow-hidden relative">
+      {/* User Manual Sidebar */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-20 w-80 animate-fade-in hidden lg:block">
+        <div className="glass rounded-2xl p-6 border border-dark-600/50 shadow-2xl overflow-hidden relative max-h-[85vh] flex flex-col">
           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10" />
-
-          <div className="relative z-10 flex flex-col items-center">
-            <div className="flex flex-col items-center gap-2 mb-6">
-              <span className="text-3xl mb-1">🔑</span>
-              <p className="text-sm font-bold text-dark-100 uppercase tracking-widest text-center">Access Control</p>
+          
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-center gap-3 mb-6 flex-shrink-0">
+              <span className="text-2xl">📖</span>
+              <h2 className="text-sm font-bold text-white uppercase tracking-widest font-heading">User Manual</h2>
             </div>
 
-            <div className="space-y-4 w-full">
-              <div className="p-4 bg-dark-800/40 rounded-xl border border-dark-600/30 text-center flex flex-col items-center">
-                <p className="text-[10px] text-dark-400 uppercase font-bold mb-2 tracking-tighter">Username</p>
-                <code className="text-blue-400 text-xs font-mono bg-dark-900/50 px-2 py-1 rounded">finbot_admin</code>
-              </div>
+            {/* Tabs */}
+            <div className="flex bg-dark-900/50 p-1 rounded-xl mb-6 border border-dark-700 flex-shrink-0">
+              <button 
+                onClick={() => setActiveTab('guide')}
+                className={`flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all ${activeTab === 'guide' ? 'bg-blue-600 text-white shadow-lg' : 'text-dark-400 hover:text-dark-200'}`}
+              >
+                Guide
+              </button>
+              <button 
+                onClick={() => setActiveTab('accounts')}
+                className={`flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all ${activeTab === 'accounts' ? 'bg-blue-600 text-white shadow-lg' : 'text-dark-400 hover:text-dark-200'}`}
+              >
+                Login
+              </button>
+              <button 
+                onClick={() => setActiveTab('roles')}
+                className={`flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all ${activeTab === 'roles' ? 'bg-blue-600 text-white shadow-lg' : 'text-dark-400 hover:text-dark-200'}`}
+              >
+                Roles
+              </button>
+              <button 
+                onClick={() => setActiveTab('analytics')}
+                className={`flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all ${activeTab === 'analytics' ? 'bg-blue-600 text-white shadow-lg' : 'text-dark-400 hover:text-dark-200'}`}
+              >
+                Eval
+              </button>
+            </div>
 
-              <div className="p-4 bg-dark-800/40 rounded-xl border border-dark-600/30 text-center flex flex-col items-center">
-                <p className="text-[10px] text-dark-400 uppercase font-bold mb-2 tracking-tighter">Password</p>
-                <code className="text-blue-400 text-xs font-mono break-all bg-dark-900/50 px-2 py-1 rounded leading-relaxed">ChangeThisPassword123!</code>
-              </div>
+            {/* Content Container (Scrollable) */}
+            <div className="overflow-y-auto pr-1 flex-1 custom-scrollbar">
+              
+              {/* Tab Content: Guide */}
+              {activeTab === 'guide' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-2 pb-2">
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <span className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">1</span>
+                      <p className="text-[11px] text-dark-200 leading-relaxed"><span className="font-bold text-white">Login & Setup</span>: Login as Admin and click the Gear ⚙️ icon in the chat to enter the Admin Panel.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">2</span>
+                      <p className="text-[11px] text-dark-200 leading-relaxed"><span className="font-bold text-white">Bootstrap Ingestion</span>: Click <span className="text-blue-400 font-bold">"Re-Index All Documents"</span>. This processes all 20+ financial docs required for the project into the Vector DB.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">3</span>
+                      <p className="text-[11px] text-dark-200 leading-relaxed"><span className="font-bold text-white">Custom Docs</span>: Once re-indexed, you can manually <span className="text-green-400 underline decoration-green-500/30">Upload</span> new files or <span className="text-red-400 underline decoration-red-500/30">Delete</span> individual docs.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <div className="mt-4 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 text-center">
-                <p className="text-[10px] text-blue-300 leading-tight">
-                  <span className="font-bold uppercase block mb-1">Developer Note</span>
-                  Use these credentials to access the C-Level administrative dashboard.
-                </p>
-              </div>
+              {/* Tab Content: Accounts */}
+              {activeTab === 'accounts' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-2 pb-2">
+                  <div className="p-3 bg-dark-800/40 rounded-xl border border-dark-600/30">
+                    <p className="text-[10px] text-dark-500 uppercase font-black mb-1.5">Admin Credentials</p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-dark-400 font-medium">User:</span>
+                        <code className="text-blue-400 font-mono bg-dark-900 px-1.5 rounded">finbot_admin</code>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-dark-400 font-medium">Pass:</span>
+                        <code className="text-blue-400 font-mono bg-dark-900 px-1.5 rounded tracking-tighter">ChangeThisPassword123!</code>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
+                    <p className="text-[10px] text-blue-300 leading-relaxed italic">
+                      Use this account to manage users, data, and run LangSmith evaluations.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content: Roles */}
+              {activeTab === 'roles' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-2 pb-2">
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-white font-bold px-1">Assigning Roles:</p>
+                    <p className="text-[10px] text-dark-400 px-1 mb-2">In Admin &gt; Users, you can change a user's <span className="text-white">Primary Role</span> or grant <span className="text-blue-400">Extra Access</span> to secondary departments.</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { role: 'C-Level', access: 'All Finance, Eng, Mktg' },
+                        { role: 'Finance', access: 'Finance + General' },
+                        { role: 'Engineering', access: 'Eng + General' },
+                        { role: 'Employee', access: 'General Only' },
+                      ].map((r, i) => (
+                        <div key={i} className="flex flex-col p-2 rounded-lg bg-dark-800/20 border border-dark-700/30">
+                          <span className="text-[10px] font-bold text-white mb-0.5">{r.role}</span>
+                          <span className="text-[9px] text-dark-400">{r.access}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content: Analytics */}
+              {activeTab === 'analytics' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-2 pb-2">
+                  <div className="p-3 bg-indigo-500/5 rounded-xl border border-indigo-500/20">
+                    <p className="text-[10px] font-bold text-indigo-300 mb-1.5 uppercase">LangSmith Evaluation</p>
+                    <p className="text-[11px] text-dark-200 leading-relaxed mb-3">
+                      Go to <span className="font-bold underline decoration-indigo-400/30">Analytics & Evals</span> to verify system performance:
+                    </p>
+                    <ul className="space-y-2">
+                      <li className="flex gap-2">
+                        <span className="text-blue-400">⚡</span>
+                        <p className="text-[10px] text-dark-400">Click <span className="text-white font-bold">"Run New Evaluation"</span> to send queries to LangSmith and get similarity scores.</p>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-green-400">📊</span>
+                        <p className="text-[10px] text-dark-400">Compare RAG outputs against <span className="text-white font-bold">Ground Truth</span> answers to ensure accuracy.</p>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -134,8 +238,25 @@ export default function LoginPage() {
 
       {/* Footer */}
       <p className="relative z-10 text-dark-600 text-xs mt-10">
-        Secure Access Portal. Please contact your administrator if you need an account.
+        Secure Access Portal. Powered by FinSolve Technologies.
       </p>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+      `}</style>
     </div>
   );
 }
