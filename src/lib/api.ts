@@ -85,6 +85,56 @@ export async function sendMessage(
   return res.json();
 }
 
+/**
+ * Production-grade streaming chat client.
+ * Consumes Server-Sent Events (SSE) and yields tokens/status updates.
+ */
+export async function* streamChat(
+  query: string,
+  sessionId: string,
+  token: string
+): AsyncGenerator<{ token?: string; status?: string; error?: string; done?: boolean; blocked?: boolean; reason?: string }> {
+  const response = await fetch(`${API_BASE}/api/chat/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ query, session_id: sessionId })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: 'Streaming failed' }));
+    throw new Error(err.detail || 'Streaming connection failed');
+  }
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+
+  if (!reader) throw new Error('Failed to open stream reader');
+
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          yield data;
+        } catch (e) {
+          console.error('Failed to parse stream chunk:', e);
+        }
+      }
+    }
+  }
+}
+
 // ─── Admin ─────────────────────────────────────────────────────────────────────
 
 export async function triggerIngestion(token: string) {

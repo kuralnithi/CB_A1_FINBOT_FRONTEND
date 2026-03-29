@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { sendMessage, type ChatResponse, type User } from '@/lib/api';
+import { sendMessage, streamChat, type ChatResponse, type User } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -10,8 +10,9 @@ interface ChatMessage {
   id: string;
   type: 'user' | 'bot';
   content: string;
-  response?: ChatResponse;
+  response?: Partial<ChatResponse>;
   timestamp: Date;
+  status?: string;
 }
 
 export default function ChatPage() {
@@ -21,6 +22,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
   const [sessionId] = useState(() => crypto.randomUUID());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +39,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, loading]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -50,29 +52,74 @@ export default function ChatPage() {
       content: query,
       timestamp: new Date(),
     };
+    
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
+    setStatus('Initializing...');
+
+    // Create a placeholder for the bot message
+    const botMsgId = crypto.randomUUID();
+    const botMsg: ChatMessage = {
+      id: botMsgId,
+      type: 'bot',
+      content: '',
+      timestamp: new Date(),
+      response: {
+        sources: [],
+        guardrail_warnings: [],
+        blocked: false
+      }
+    };
+    
+    setMessages(prev => [...prev, botMsg]);
 
     try {
-      const response = await sendMessage(query, sessionId, token);
-      const botMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        type: 'bot',
-        content: response.answer,
-        response,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, botMsg]);
+      const stream = streamChat(query, sessionId, token);
+      let accumulatedContent = '';
+
+      for await (const chunk of stream) {
+        if (chunk.token) {
+          accumulatedContent += chunk.token;
+          setMessages(prev => prev.map(m => 
+            m.id === botMsgId ? { ...m, content: accumulatedContent } : m
+          ));
+        }
+        
+        if (chunk.status) {
+          setStatus(chunk.status);
+          setMessages(prev => prev.map(m => 
+            m.id === botMsgId ? { ...m, status: chunk.status } : m
+          ));
+        }
+
+        if (chunk.error || chunk.blocked) {
+          const errorMessage = chunk.error || `Request blocked: ${chunk.reason}`;
+          setMessages(prev => prev.map(m => 
+            m.id === botMsgId ? { 
+              ...m, 
+              content: errorMessage,
+              response: { ...m.response, blocked: chunk.blocked, blocked_reason: chunk.reason }
+            } : m
+          ));
+          break;
+        }
+
+        if (chunk.done) {
+          setMessages(prev => prev.map(m => 
+            m.id === botMsgId ? { 
+              ...m, 
+              response: { ...m.response, accessible_collections: (chunk as any).accessible_collections }
+            } : m
+          ));
+        }
+      }
     } catch (err: any) {
-      const errMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        type: 'bot',
-        content: `Error: ${err.message}`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errMsg]);
+      setMessages(prev => prev.map(m => 
+        m.id === botMsgId ? { ...m, content: `Connection error: ${err.message}` } : m
+      ));
     } finally {
       setLoading(false);
+      setStatus('');
     }
   };
 
@@ -137,28 +184,20 @@ export default function ChatPage() {
               <p className="text-dark-400 mb-6">
                 Ask questions about FinSolve documents. Your role: <strong className="text-white">{user.role}</strong>
               </p>
-              {/* <div className="flex flex-wrap justify-center gap-2">
-                  {['general', 'finance', 'engineering', 'marketing'].map(col => {
-                    const hasAccess = user.role === 'c_level' || col === 'general' || col === user.role;
-                    return (
-                      <span
-                        key={col}
-                        className={`px-3 py-1 rounded-full text-xs border ${hasAccess
-                            ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                            : 'bg-red-500/10 text-red-400 border-red-500/30 line-through'
-                          }`}
-                      >
-                        {hasAccess ? '🔓' : '🔒'} {col}
-                      </span>
-                    );
-                  })}
-                </div> */}
             </div>
           )}
 
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
               <div className={`max-w-3xl ${msg.type === 'user' ? 'order-1' : ''}`}>
+                {/* Status indicator above bubble */}
+                {msg.type === 'bot' && msg.status && !msg.content && (
+                  <div className="mb-2 text-xs text-blue-400 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    {msg.status}
+                  </div>
+                )}
+
                 {/* Message bubble */}
                 <div className={`rounded-2xl px-5 py-3 ${msg.type === 'user'
                   ? 'bg-blue-600 text-white rounded-tr-md'
@@ -166,7 +205,15 @@ export default function ChatPage() {
                   }`}>
                   {msg.type === 'bot' ? (
                     <div className="message-content">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      {msg.content ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      ) : (
+                        <div className="flex gap-1 py-1">
+                          <span className="w-2 h-2 rounded-full bg-dark-600 animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 rounded-full bg-dark-600 animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 rounded-full bg-dark-600 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p>{msg.content}</p>
@@ -176,16 +223,6 @@ export default function ChatPage() {
                 {/* Bot response metadata */}
                 {msg.type === 'bot' && msg.response && (
                   <div className="mt-3 space-y-2">
-                    {/* Route badge */}
-                    {/* {msg.response.route_selected && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-dark-500">Route:</span>
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                          🧭 {msg.response.route_selected}
-                        </span>
-                      </div>
-                    )} */}
-
                     {/* Sources */}
                     {msg.response.sources && msg.response.sources.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
@@ -234,21 +271,6 @@ export default function ChatPage() {
             </div>
           ))}
 
-          {loading && (
-            <div className="flex justify-start animate-fade-in">
-              <div className="glass rounded-2xl rounded-tl-md px-5 py-3">
-                <div className="flex items-center gap-2 text-dark-400">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                  <span className="text-sm">Thinking...</span>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -275,8 +297,7 @@ export default function ChatPage() {
             </button>
           </div>
           <div className="flex items-center gap-4 mt-2 text-xs text-dark-500">
-            <span>Collections: {user.role === 'c_level' ? 'All' : ['general', user.role !== 'employee' ? user.role : ''].filter(Boolean).join(', ')}</span>
-            <span>•</span>
+             {status && <span className="text-blue-400 animate-pulse">● {status}</span>}
             <span>Session: {sessionId.slice(0, 8)}</span>
           </div>
         </div>
