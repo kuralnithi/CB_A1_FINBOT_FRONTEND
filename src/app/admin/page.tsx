@@ -11,6 +11,7 @@ import {
   updateUserRole,
   updateUserExtraRoles,
   deleteUser,
+  uploadDocument,
   type User,
   type DocumentInfo,
 } from '@/lib/api';
@@ -107,6 +108,125 @@ function AccessSelector({
   );
 }
 
+// ─── File Uploader ─────────────────────────────────────────────────────────────
+function FileUploader({
+  onUpload,
+  isUploading,
+}: {
+  onUpload: (file: File, collection: string) => void;
+  isUploading: boolean;
+}) {
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [collection, setCollection] = useState('general');
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedFile) {
+      onUpload(selectedFile, collection);
+      setSelectedFile(null);
+    }
+  };
+
+  return (
+    <div className="glass rounded-xl p-6 mb-8 border border-white/5">
+      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+        <span className="text-xl">📁</span> Upload New Document
+      </h3>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+          className={`relative border-2 border-dashed rounded-xl p-8 transition-all text-center ${dragActive
+              ? 'border-blue-500 bg-blue-500/10'
+              : selectedFile
+                ? 'border-green-500/50 bg-green-500/5'
+                : 'border-dark-600 hover:border-dark-400 bg-dark-800/50'
+            }`}
+        >
+          <input
+            type="file"
+            id="file-upload"
+            onChange={handleFileChange}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            accept=".pdf,.md,.docx,.csv"
+          />
+          <div className="flex flex-col items-center">
+            {selectedFile ? (
+              <>
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 mb-2">✓</div>
+                <p className="text-sm text-white font-medium">{selectedFile.name}</p>
+                <p className="text-xs text-dark-400 mt-1">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                <button type="button" onClick={() => setSelectedFile(null)} className="mt-3 text-xs text-red-400 hover:underline">Change File</button>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mb-2">↑</div>
+                <p className="text-sm text-dark-200">Drag & drop your file here or click to browse</p>
+                <p className="text-xs text-dark-500 mt-1">Supports PDF, Markdown, DOCX, CSV</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-xs font-semibold text-dark-300 mb-1.5 uppercase tracking-wide">Target Collection</label>
+            <select
+              value={collection}
+              onChange={(e) => setCollection(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-dark-800 border border-dark-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+            >
+              <option value="general">General (Public/All)</option>
+              <option value="hr">General (HR Docs)</option>
+              <option value="finance">Finance (Confidential)</option>
+              <option value="engineering">Engineering (Internal)</option>
+              <option value="marketing">Marketing (Strategic)</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={!selectedFile || isUploading}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isUploading && (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
+            {isUploading ? 'Uploading...' : 'Upload & Index'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const router = useRouter();
@@ -130,6 +250,8 @@ export default function AdminPage() {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [addUserError, setAddUserError] = useState('');
   const [newUser, setNewUser] = useState({ username: '', password: '', display_name: '', role: 'employee' });
+
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem('finbot_token');
@@ -238,6 +360,20 @@ export default function AdminPage() {
     finally { setIsAddingUser(false); }
   };
 
+  const handleUpload = async (file: File, collection: string) => {
+    setIsUploadingDocument(true);
+    setError('');
+    try {
+      await uploadDocument(file, collection, token);
+      await loadData(token);
+      alert(`File "${file.name}" uploaded and indexed successfully.`);
+    } catch (err: any) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setIsUploadingDocument(false);
+    }
+  };
+
   if (!user) return null;
 
   const totalChunks = documents.reduce((s, d) => s + d.chunk_count, 0);
@@ -301,8 +437,10 @@ export default function AdminPage() {
 
           {/* ── Documents Tab ── */}
           {activeTab === 'documents' && (
-            <div className="glass rounded-xl overflow-hidden">
-              <table className="w-full">
+            <div className="space-y-6">
+              <FileUploader onUpload={handleUpload} isUploading={isUploadingDocument} />
+              <div className="glass rounded-xl overflow-hidden">
+                <table className="w-full">
                 <thead>
                   <tr className="border-b border-dark-700">
                     {['Document', 'Collection', 'Chunks', 'Status', 'Actions'].map((h, i) => (
@@ -328,7 +466,8 @@ export default function AdminPage() {
               </table>
               <Pagination total={documents.length} page={docPage} pageSize={PAGE_SIZE} onChange={setDocPage} />
             </div>
-          )}
+          </div>
+        )}
 
           {/* ── Users Tab ── */}
           {activeTab === 'users' && (

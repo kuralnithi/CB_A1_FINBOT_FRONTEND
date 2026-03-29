@@ -2,7 +2,7 @@
  * API client for the FinBot backend.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (process.env as any).VITE_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || (process.env as any).VITE_API_URL || 'https://kural-dev-finbot-backend.hf.space';
 
 export interface User {
   username: string;
@@ -167,6 +167,24 @@ export async function deleteUser(username: string, token: string) {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.detail || 'User delete failed');
+  }
+  return res.json();
+}
+
+export async function uploadDocument(file: File, collection: string, token: string) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('collection', collection);
+
+  const res = await fetch(`${API_BASE}/api/admin/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Upload failed');
   }
   return res.json();
 }
