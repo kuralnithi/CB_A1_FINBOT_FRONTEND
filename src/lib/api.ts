@@ -2,7 +2,7 @@
  * API client for the FinBot backend.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (process.env as any).VITE_API_URL || 'https://kural-dev-finbot-backend.hf.space';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || (process.env as any).VITE_API_URL || 'http://localhost:8000';
 
 export interface User {
   username: string;
@@ -187,4 +187,117 @@ export async function uploadDocument(file: File, collection: string, token: stri
     throw new Error(err.detail || 'Upload failed');
   }
   return res.json();
+}
+
+export interface QueryLogInfo {
+  id: number;
+  username: string;
+  query: string;
+  answer: string;
+  user_role: string;
+  routing_selected: string;
+  is_exported: boolean;
+  created_at: string;
+}
+
+export async function listRecentQueries(token: string): Promise<QueryLogInfo[]> {
+  const res = await fetch(`${API_BASE}/api/admin/queries`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function addToLangsmithDataset(id: number, query: string, answer: string, ground_truth: string, token: string) {
+  const res = await fetch(`${API_BASE}/api/admin/eval/add-to-dataset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ id, query, answer, ground_truth }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to add to dataset');
+  }
+  return res.json();
+}
+
+export async function bulkAddtoLangsmithDataset(items: { id: number; query: string; answer: string; ground_truth: string }[], token: string) {
+  const res = await fetch(`${API_BASE}/api/admin/eval/bulk-add`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Bulk add failed');
+  }
+  return res.json();
+}
+
+export async function runLangsmithEvaluation(token: string) {
+  const res = await fetch(`${API_BASE}/api/admin/eval/run`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || 'Failed to run evaluation');
+  }
+  return res.json();
+}
+
+export interface EvalRunInfo {
+  id: number;
+  experiment_name: string;
+  dataset_name: string;
+  total_examples: number;
+  avg_exact_match: number | null;
+  results_url: string | null;
+  per_example_results: string | null; // JSON string
+  triggered_by: string;
+  created_at: string;
+}
+
+export async function listEvalRuns(token: string): Promise<EvalRunInfo[]> {
+  const res = await fetch(`${API_BASE}/api/admin/eval/runs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+export async function deleteEvalRun(runId: number, token: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/api/admin/eval/runs/${runId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.ok;
+}
+
+export async function deleteQueryLog(queryId: number, token: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/api/admin/queries/${queryId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.ok;
+}
+
+
+export async function recommendGroundTruth(query: string, answer: string, token: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/admin/eval/recommend-ground-truth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ query, answer }),
+  });
+  if (!res.ok) return '';
+  const data = await res.json();
+  return data.recommendation;
 }
