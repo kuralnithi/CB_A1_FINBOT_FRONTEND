@@ -108,7 +108,12 @@ export default function ChatPage() {
           setMessages(prev => prev.map(m => 
             m.id === botMsgId ? { 
               ...m, 
-              response: { ...m.response, accessible_collections: (chunk as any).accessible_collections }
+              response: { 
+                ...m.response, 
+                accessible_collections: (chunk as any).accessible_collections,
+                sources: (chunk as any).sources || [],
+                guardrail_warnings: (chunk as any).guardrail_warnings || [],
+              }
             } : m
           ));
         }
