@@ -155,6 +155,7 @@ export default function AdminPage() {
   usePolling(() => getIngestionStatus(token), {
     enabled: ingesting && !!token,
     intervalMs: POLL_INTERVAL_MS,
+    onSuccess: (s) => setIngestionStatus(s),
     onComplete: (s) => {
       setIngesting(false);
       setIngestionStatus(s);
@@ -170,6 +171,7 @@ export default function AdminPage() {
   usePolling(() => getEvalStatus(token), {
     enabled: isEvalRunning && !!token,
     intervalMs: POLL_INTERVAL_MS,
+    onSuccess: (s) => setEvalStatus(s),
     onComplete: (s) => {
       setIsEvalRunning(false);
       setEvalStatus(s);
