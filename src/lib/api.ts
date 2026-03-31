@@ -149,6 +149,16 @@ export async function triggerIngestion(token: string) {
   return res.json();
 }
 
+export async function getIngestionStatus(token: string): Promise<{ status: string; progress: number; message: string }> {
+  const res = await fetch(`${API_BASE}/api/admin/ingest/status`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    return { status: 'error', progress: 0, message: 'Failed to fetch status' };
+  }
+  return res.json();
+}
+
 export async function listDocuments(token: string): Promise<DocumentInfo[]> {
   const res = await fetch(`${API_BASE}/api/admin/documents`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -298,6 +308,16 @@ export async function runLangsmithEvaluation(token: string) {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.detail || 'Failed to run evaluation');
+  }
+  return res.json();
+}
+
+export async function getEvalStatus(token: string): Promise<{ status: string; progress: number; current: number; total: number; message: string }> {
+  const res = await fetch(`${API_BASE}/api/admin/eval/status`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    return { status: 'error', progress: 0, current: 0, total: 0, message: 'Failed to fetch status' };
   }
   return res.json();
 }
