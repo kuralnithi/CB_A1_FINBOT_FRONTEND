@@ -2,40 +2,23 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { sendMessage, streamChat, type ChatResponse, type User } from '@/lib/api';
+import { streamChat } from '@/lib/api';
+import { PAGE_ROUTES } from '@/lib/routes';
+import { useAuth } from '@/hooks/useAuth';
+import { getRoleBadgeColor } from '@/lib/constants';
+import type { ChatMessage } from '@/lib/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-interface ChatMessage {
-  id: string;
-  type: 'user' | 'bot';
-  content: string;
-  response?: Partial<ChatResponse>;
-  timestamp: Date;
-  status?: string;
-}
-
 export default function ChatPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState('');
+  const { user, token, logout, isLoading } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [sessionId] = useState(() => crypto.randomUUID());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem('finbot_token');
-    const storedUser = localStorage.getItem('finbot_user');
-    if (!storedToken || !storedUser) {
-      router.push('/');
-      return;
-    }
-    setToken(storedToken);
-    setUser(JSON.parse(storedUser));
-  }, [router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -129,23 +112,10 @@ export default function ChatPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('finbot_token');
-    localStorage.removeItem('finbot_user');
-    router.push('/');
+    logout();
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      employee: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-      finance: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-      engineering: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      marketing: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-      c_level: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    };
-    return colors[role] || colors.employee;
-  };
-
-  if (!user) return null;
+  if (isLoading || !user) return null;
 
   return (
     <div className="h-screen flex flex-col">
@@ -164,7 +134,7 @@ export default function ChatPage() {
           </div>
           {user.role === 'c_level' && (
             <button
-              onClick={() => router.push('/admin')}
+              onClick={() => router.push(PAGE_ROUTES.ADMIN)}
               className="px-3 py-1.5 text-xs rounded-lg bg-dark-700 hover:bg-dark-600 text-dark-300 transition-colors"
             >
               Admin Panel

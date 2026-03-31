@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '@/lib/api';
+import { PAGE_ROUTES } from '@/lib/routes';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function LoginPage() {
       const data = await login(username, password);
       localStorage.setItem('finbot_token', data.access_token);
       localStorage.setItem('finbot_user', JSON.stringify(data.user));
-      router.push('/chat');
+      router.push(PAGE_ROUTES.CHAT);
     } catch (err: any) {
       setError(err.message || 'Login failed. Check your credentials.');
     } finally {
