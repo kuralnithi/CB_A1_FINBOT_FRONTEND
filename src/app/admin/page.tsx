@@ -81,6 +81,7 @@ export default function AdminPage() {
   const [isSubmittingToLS, setIsSubmittingToLS] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+  const [isBulkRecommending, setIsBulkRecommending] = useState(false);
   const [bulkGroundTruths, setBulkGroundTruths] = useState<Record<number, string>>({});
   const [selectedQueries, setSelectedQueries] = useState<number[]>([]);
   const [hideExported, setHideExported] = useState(true);
@@ -495,7 +496,7 @@ export default function AdminPage() {
                   message={evalStatus.message} 
                   progress={evalStatus.progress} 
                   color="bg-purple-600" 
-                  detail={`${evalStatus.current}/${evalStatus.total}`} 
+                  detail={evalStatus.total ? `${evalStatus.current || 0}/${evalStatus.total}` : ''} 
                 />
               )}
 
@@ -805,7 +806,36 @@ export default function AdminPage() {
 
       {/* Bulk Promote Modal */}
       <Modal open={showBulkModal} onClose={() => setShowBulkModal(false)} maxWidth="max-w-4xl">
-        <h3 className="text-2xl font-bold text-white mb-6">Bulk Promote ({selectedQueries.length})</h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-2xl font-bold text-white">Bulk Promote ({selectedQueries.length})</h3>
+          <button
+            disabled={isBulkRecommending}
+            onClick={async () => {
+              setIsBulkRecommending(true);
+              const toastId = toast.loading('Generating bulk recommendations...');
+              try {
+                const newTruths = { ...bulkGroundTruths };
+                const promises = selectedQueries.map(async (id) => {
+                  if (newTruths[id]) return; // Skip if already manually filled/previously generated
+                  const q = queries.find((x) => x.id === id);
+                  if (!q) return;
+                  const r = await recommendGroundTruth(q.query, q.answer, token);
+                  newTruths[id] = r;
+                });
+                await Promise.all(promises);
+                setBulkGroundTruths(newTruths);
+                toast.success('Generated recommendations!', { id: toastId });
+              } catch (e: any) {
+                toast.error('Failed to generate some recommendations', { id: toastId });
+              } finally {
+                setIsBulkRecommending(false);
+              }
+            }}
+            className="px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-blue-500/20 disabled:opacity-50 transition-all"
+          >
+            {isBulkRecommending ? '✨ Generating...' : '✨ Auto-Fill Empty'}
+          </button>
+        </div>
         <div className="flex-1 overflow-y-auto space-y-4 pr-2 max-h-[60vh] custom-scrollbar">
           {selectedQueries.map((id) => {
             const q = queries.find((x) => x.id === id);
